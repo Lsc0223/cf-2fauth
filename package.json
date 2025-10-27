@@ -1,0 +1,24 @@
+{
+  "name": "2fa-cloudflare-workers",
+  "version": "1.0.0",
+  "description": "A modern two-factor authentication (2FA) management system based on Cloudflare Workers, providing secure TOTP code generation, account management, and cloud backup functions.",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "keywords": [
+    "2fa",
+    "cloudflare-workers",
+    "totp",
+    "security"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "itty-router": "^4.0.23"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
