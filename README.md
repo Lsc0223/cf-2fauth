@@ -5,6 +5,7 @@
 ## ✨ 核心特性
 
 ### 🛡️ 安全特性
+- **OAuth2 认证** - 使用 Linux.do OAuth2 安全登录
 - **JWT 会话管理** - 2小时自动过期的安全会话
 - **端到端加密** - 所有敏感数据使用 AES-GCM 加密存储
 - **速率限制保护** - 防止暴力攻击和 API 滥用
@@ -78,7 +79,15 @@ binding = "RATE_LIMIT_KV"
 id = "your_rate_limit_kv_id"  # 替换为实际的 ID
 ```
 
-#### 5. 设置密钥
+#### 5. 配置 OAuth（必需）
+
+本系统仅支持 Linux.do OAuth 登录。
+
+1. 访问 [https://connect.linux.do](https://connect.linux.do) 创建 OAuth 应用
+2. 设置回调 URL：`https://your-domain.com/api/auth/callback`（本地开发使用 `http://localhost:8787/api/auth/callback`）
+3. 获取 Client ID 和 Client Secret
+
+#### 6. 设置密钥
 
 ```bash
 # JWT 签名密钥（必需）
@@ -89,12 +98,15 @@ npx wrangler secret put JWT_SECRET
 npx wrangler secret put ENCRYPTION_KEY
 # 输入一个强随机字符串，例如: openssl rand -base64 32
 
-# OAuth 配置（可选，如果使用 OAuth 登录）
+# Linux.do OAuth 配置（必需）
 npx wrangler secret put OAUTH_CLIENT_ID
+# 输入你的 Linux.do OAuth Client ID
+
 npx wrangler secret put OAUTH_CLIENT_SECRET
+# 输入你的 Linux.do OAuth Client Secret
 ```
 
-#### 6. 本地开发
+#### 7. 本地开发
 
 ```bash
 npm run dev
@@ -102,7 +114,7 @@ npm run dev
 
 访问 http://localhost:8787 查看应用。
 
-#### 7. 部署到 Cloudflare
+#### 8. 部署到 Cloudflare
 
 ```bash
 npm run deploy
@@ -115,10 +127,23 @@ npm run deploy
 ### 首次登录
 
 1. 访问你的 Workers 域名
-2. 输入任意用户名和密码（演示模式）
-3. 系统会自动创建账户并登录
+2. 点击 **"🔑 使用 Linux.do 登录"** 按钮
+3. 在 Linux.do 授权页面同意授权
+4. 自动跳转回应用并完成登录
 
-> **注意**：当前版本使用简单登录模式，适合个人使用。如需多用户支持，请配置 OAuth 登录。
+> **注意**：本系统仅支持 Linux.do OAuth 登录，确保您已在 Linux.do 注册账户。
+
+### 用户设置与账户管理
+
+1. 登录后点击右上角 **"⚙️ 设置"** 按钮
+2. 查看用户信息：
+   - 用户 ID、用户名、昵称
+   - 信任等级、账户状态
+   - 2FA 账户数量、创建时间
+3. **删除账户**（危险操作）：
+   - 在设置页面底部可以删除账户
+   - 将永久删除所有数据（2FA 账户、WebDAV 配置等）
+   - 此操作无法撤销，请谨慎操作
 
 ### 添加 2FA 账户
 
@@ -287,13 +312,19 @@ routes = [
 
 ### OAuth 登录配置
 
-如果你想启用 OAuth 登录（推荐用于多用户场景）：
+本系统已配置为使用 Linux.do OAuth 登录。配置详情：
 
-1. 选择 OAuth 提供商（如 Google、GitHub、Auth0 等）
-2. 创建 OAuth 应用并获取凭据
-3. 设置重定向 URI: `https://your-domain.com/api/auth/oauth/callback`
-4. 在 `src/api/auth.js` 中更新 OAuth 端点
-5. 设置密钥：
+- **授权端点**: `https://connect.linux.do/oauth2/authorize`
+- **令牌端点**: `https://connect.linux.do/oauth2/token`
+- **用户信息端点**: `https://connect.linux.do/api/user`
+- **回调 URI**: `https://your-domain.com/api/auth/callback`
+
+如需修改回调 URI（例如使用自定义域名）：
+
+1. 在 Linux.do OAuth 应用设置中更新回调 URL
+2. 确保回调 URL 格式为：`https://your-domain.com/api/auth/callback`
+
+设置密钥：
 
 ```bash
 npx wrangler secret put OAUTH_CLIENT_ID
@@ -324,26 +355,59 @@ await checkRateLimit(env.RATE_LIMIT_KV, rateLimitKey, 30, 30);
 
 ### 认证 API
 
-#### POST `/api/auth/login`
-简单登录（演示模式）
+#### GET `/api/auth/oauth/login`
+跳转到 Linux.do OAuth 登录页面
 
-**请求：**
-```json
-{
-  "username": "user",
-  "password": "pass"
-}
-```
+#### GET `/api/auth/callback`
+OAuth 回调处理（自动处理）
+
+#### GET `/api/auth/logout`
+退出登录
 
 **响应：**
 ```json
 {
-  "token": "jwt_token_here",
-  "user": { "id": "user_id", "username": "user" }
+  "success": true
 }
 ```
 
-### 账户管理 API
+### 用户管理 API
+
+需要在请求头中包含：`Authorization: Bearer <token>`
+
+#### GET `/api/user`
+获取当前用户信息
+
+**响应：**
+```json
+{
+  "user": {
+    "id": "12345",
+    "username": "user",
+    "name": "User Name",
+    "avatar_template": "/user_avatar/...",
+    "active": true,
+    "trust_level": 2,
+    "silenced": false,
+    "accountCount": 5,
+    "webdavConfigCount": 1,
+    "createdAt": 1234567890000
+  }
+}
+```
+
+#### DELETE `/api/user`
+删除当前用户账户（包括所有数据）
+
+**响应：**
+```json
+{
+  "success": true,
+  "message": "用户账户已删除，包括所有 2FA 账户和 WebDAV 配置"
+}
+```
+
+### 2FA 账户管理 API
 
 所有账户 API 需要在请求头中包含：`Authorization: Bearer <token>`
 
