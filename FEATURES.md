@@ -173,6 +173,10 @@
 - [x] Windows PowerShell 脚本
 - [x] GitHub Actions 示例
 - [x] Wrangler 配置
+- [x] 🆕 UI 部署管理界面
+- [x] 🆕 Cloudflare API 集成
+- [x] 🆕 KV 命名空间管理
+- [x] 🆕 配置向导
 
 #### 开发辅助
 - [x] EditorConfig 配置
@@ -188,6 +192,7 @@
 - [x] 演示指南
 - [x] 常见问题
 - [x] 部署指南
+- [x] 🆕 UI 部署指南
 
 #### 技术文档
 - [x] API 完整文档
