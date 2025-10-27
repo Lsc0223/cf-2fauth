@@ -1,0 +1,24 @@
+{
+  "name": "2fa-manager",
+  "version": "1.0.0",
+  "description": "基于 Cloudflare Workers 的现代化双因素认证管理系统",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "keywords": [
+    "2fa",
+    "totp",
+    "cloudflare-workers",
+    "authentication",
+    "security"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}

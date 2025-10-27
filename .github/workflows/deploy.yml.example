@@ -1,0 +1,43 @@
+# GitHub Actions 自动部署示例
+# 重命名为 deploy.yml 并配置 Secrets 后可以使用
+
+name: Deploy to Cloudflare Workers
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Install dependencies
+        run: npm install
+        
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          
+# 配置说明：
+# 1. 在 GitHub 仓库的 Settings -> Secrets 中添加：
+#    - CLOUDFLARE_API_TOKEN: Cloudflare API Token
+#    - CLOUDFLARE_ACCOUNT_ID: Cloudflare Account ID
+#
+# 2. API Token 需要以下权限：
+#    - Account - Workers Scripts - Edit
+#    - Account - Workers KV Storage - Edit
+#
+# 3. 获取 Account ID：
+#    登录 Cloudflare Dashboard，在右侧可以找到 Account ID
