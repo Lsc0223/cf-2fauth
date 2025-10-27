@@ -4,6 +4,7 @@ import { authenticate, handleOAuthLogin, handleOAuthCallback, handleSimpleLogin,
 import { getAccounts, addAccount, updateAccount, deleteAccount, generateCode, generateAllCodes } from './api/accounts.js';
 import { getWebDAVConfigs, addWebDAVConfig, deleteWebDAVConfig, createBackup, restoreBackup, listBackups } from './api/backup.js';
 import { exportAccounts, importAccounts } from './api/import.js';
+import { getDeployConfig, saveDeployConfig, createKVNamespace, deployWorker, getDeployStatus } from './api/deploy.js';
 import { HTML_CONTENT } from './ui/index.js';
 
 export default {
@@ -101,6 +102,16 @@ export default {
         response = await exportAccounts(request, env, user);
       } else if (path === '/api/import' && method === 'POST') {
         response = await importAccounts(request, env, user);
+      } else if (path === '/api/deploy/config' && method === 'GET') {
+        response = await getDeployConfig(request, env, user);
+      } else if (path === '/api/deploy/config' && method === 'POST') {
+        response = await saveDeployConfig(request, env, user);
+      } else if (path === '/api/deploy/kv/create' && method === 'POST') {
+        response = await createKVNamespace(request, env, user);
+      } else if (path === '/api/deploy/worker' && method === 'POST') {
+        response = await deployWorker(request, env, user);
+      } else if (path === '/api/deploy/status' && method === 'GET') {
+        response = await getDeployStatus(request, env, user);
       } else {
         response = new Response(JSON.stringify({ error: '接口不存在' }), {
           status: 404,

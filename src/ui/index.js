@@ -513,6 +513,7 @@ export const HTML_CONTENT = `<!DOCTYPE html>
             <h1>🔐 2FA 安全管理系统</h1>
             <div class="header-actions">
               <button class="btn btn-primary" onclick="showAddModal()">➕ 添加账户</button>
+              <button class="btn btn-secondary" onclick="showDeployModal()">🚀 部署</button>
               <button class="btn btn-secondary" onclick="showBackupModal()">☁️ 备份</button>
               <button class="btn btn-secondary" onclick="showImportModal()">📥 导入</button>
               <button class="btn btn-secondary" onclick="exportData()">📤 导出</button>
@@ -1026,6 +1027,376 @@ export const HTML_CONTENT = `<!DOCTYPE html>
         }
       } catch (error) {
         alert('导出失败');
+      }
+    }
+
+    // 显示部署模态框
+    async function showDeployModal() {
+      // 加载现有配置
+      let existingConfig = null;
+      try {
+        const response = await fetch(\`\${API_BASE}/api/deploy/config\`, {
+          headers: { 'Authorization': \`Bearer \${authToken}\` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          existingConfig = data.config;
+        }
+      } catch (error) {
+        console.error('加载配置失败:', error);
+      }
+
+      document.getElementById('modal-container').innerHTML = \`
+        <div class="modal active">
+          <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+              <h3>🚀 Cloudflare Workers 部署</h3>
+              <button class="close-btn" onclick="closeModal()">×</button>
+            </div>
+            <div class="tabs">
+              <button class="tab active" onclick="switchDeployTab('config-tab')">配置</button>
+              <button class="tab" onclick="switchDeployTab('kv-tab')">KV 命名空间</button>
+              <button class="tab" onclick="switchDeployTab('deploy-tab')">部署</button>
+              <button class="tab" onclick="switchDeployTab('guide-tab')">部署指南</button>
+            </div>
+            
+            <div id="config-tab" class="tab-content active">
+              <p style="margin-bottom: 15px; color: var(--text-secondary);">配置 Cloudflare 账户信息以启用自动部署</p>
+              <form id="deploy-config-form">
+                <div class="form-group">
+                  <label>Account ID *</label>
+                  <input type="text" class="form-control" id="deploy-account-id" required 
+                    value="\${existingConfig?.accountId || ''}"
+                    placeholder="获取方式：Cloudflare Dashboard > Workers > 右侧栏">
+                </div>
+                <div class="form-group">
+                  <label>API Token *</label>
+                  <input type="password" class="form-control" id="deploy-api-token" required 
+                    value="\${existingConfig?.apiToken || ''}"
+                    placeholder="创建方式：My Profile > API Tokens > Create Token">
+                </div>
+                <div class="form-group">
+                  <label>Worker 名称 *</label>
+                  <input type="text" class="form-control" id="deploy-worker-name" required 
+                    value="\${existingConfig?.workerName || '2fa-manager'}"
+                    placeholder="例如：2fa-manager">
+                </div>
+                <div class="form-group">
+                  <label>USERS_KV 命名空间 ID</label>
+                  <input type="text" class="form-control" id="deploy-kv-users" 
+                    value="\${existingConfig?.kvNamespaceUsers || ''}"
+                    placeholder="留空将在下一步创建">
+                </div>
+                <div class="form-group">
+                  <label>RATE_LIMIT_KV 命名空间 ID</label>
+                  <input type="text" class="form-control" id="deploy-kv-rate" 
+                    value="\${existingConfig?.kvNamespaceRateLimit || ''}"
+                    placeholder="留空将在下一步创建">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">💾 保存配置</button>
+              </form>
+            </div>
+
+            <div id="kv-tab" class="tab-content">
+              <p style="margin-bottom: 15px; color: var(--text-secondary);">创建 KV 命名空间用于数据存储</p>
+              <div class="form-group">
+                <label>命名空间名称</label>
+                <input type="text" class="form-control" id="kv-namespace-title" placeholder="例如：USERS_KV">
+              </div>
+              <button class="btn btn-success" onclick="createKVNamespace()" style="width: 100%;">
+                ➕ 创建 KV 命名空间
+              </button>
+              <div id="kv-result" style="margin-top: 20px;"></div>
+              <div style="margin-top: 20px;">
+                <h4 style="margin-bottom: 10px;">需要创建的命名空间：</h4>
+                <ul style="padding-left: 20px; color: var(--text-secondary);">
+                  <li>USERS_KV - 用于存储用户数据和账户信息</li>
+                  <li>RATE_LIMIT_KV - 用于速率限制和访问控制</li>
+                </ul>
+                <p style="margin-top: 10px; font-size: 14px; color: var(--warning);">
+                  ⚠️ 创建后请将 ID 复制到配置页面
+                </p>
+              </div>
+            </div>
+
+            <div id="deploy-tab" class="tab-content">
+              <div class="alert alert-info">
+                ℹ️ 请确保已完成配置和 KV 命名空间创建
+              </div>
+              <button class="btn btn-success" onclick="deployToCloudflare()" style="width: 100%; margin-bottom: 15px;">
+                🚀 开始部署
+              </button>
+              <div id="deploy-result"></div>
+              <div style="margin-top: 20px;">
+                <h4 style="margin-bottom: 10px;">部署说明：</h4>
+                <p style="color: var(--text-secondary); font-size: 14px; line-height: 1.8;">
+                  由于浏览器限制，无法直接通过 UI 完成完整部署。<br>
+                  建议使用 wrangler CLI 工具进行部署：
+                </p>
+                <pre style="background: var(--bg); padding: 15px; border-radius: 8px; margin-top: 10px; overflow-x: auto;">
+# 1. 安装 wrangler
+npm install -g wrangler
+
+# 2. 登录 Cloudflare
+wrangler login
+
+# 3. 部署应用
+wrangler deploy</pre>
+              </div>
+            </div>
+
+            <div id="guide-tab" class="tab-content">
+              <h4 style="margin-bottom: 15px;">📖 完整部署指南</h4>
+              <div style="line-height: 1.8;">
+                <h5 style="margin: 15px 0 10px;">1️⃣ 获取 Cloudflare 凭据</h5>
+                <ul style="padding-left: 20px; color: var(--text-secondary);">
+                  <li>登录 <a href="https://dash.cloudflare.com" target="_blank">Cloudflare Dashboard</a></li>
+                  <li>进入 Workers & Pages 查看 Account ID</li>
+                  <li>访问 My Profile > API Tokens > Create Token</li>
+                  <li>选择 "Edit Cloudflare Workers" 模板</li>
+                </ul>
+
+                <h5 style="margin: 15px 0 10px;">2️⃣ 创建 KV 命名空间</h5>
+                <ul style="padding-left: 20px; color: var(--text-secondary);">
+                  <li>使用上方 "KV 命名空间" 标签页创建</li>
+                  <li>或在 Dashboard > Workers > KV 中手动创建</li>
+                  <li>保存创建后返回的命名空间 ID</li>
+                </ul>
+
+                <h5 style="margin: 15px 0 10px;">3️⃣ 配置密钥（重要）</h5>
+                <pre style="background: var(--bg); padding: 15px; border-radius: 8px; margin: 10px 0; overflow-x: auto;">
+# 生成随机密钥
+openssl rand -base64 32
+
+# 在 Cloudflare Dashboard 中设置
+Workers > 你的 Worker > Settings > Variables
+添加环境变量：
+- JWT_SECRET
+- ENCRYPTION_KEY</pre>
+
+                <h5 style="margin: 15px 0 10px;">4️⃣ 本地部署</h5>
+                <pre style="background: var(--bg); padding: 15px; border-radius: 8px; margin: 10px 0; overflow-x: auto;">
+# 克隆项目
+git clone &lt;repository-url&gt;
+cd 2fa-manager
+
+# 安装依赖
+npm install
+
+# 配置 wrangler.toml
+# 填入 KV 命名空间 ID
+
+# 部署
+npm run deploy</pre>
+
+                <h5 style="margin: 15px 0 10px;">5️⃣ 验证部署</h5>
+                <ul style="padding-left: 20px; color: var(--text-secondary);">
+                  <li>部署成功后访问 *.workers.dev 域名</li>
+                  <li>测试登录和基本功能</li>
+                  <li>配置自定义域名（可选）</li>
+                </ul>
+
+                <div class="alert alert-info" style="margin-top: 20px;">
+                  📚 详细文档请参考项目的 <code>DEPLOYMENT.md</code> 文件
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      \`;
+
+      // 绑定配置表单提交
+      document.getElementById('deploy-config-form')?.addEventListener('submit', handleSaveDeployConfig);
+    }
+
+    // 切换部署标签
+    function switchDeployTab(tabId) {
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      
+      event.target.classList.add('active');
+      document.getElementById(tabId).classList.add('active');
+    }
+
+    // 保存部署配置
+    async function handleSaveDeployConfig(e) {
+      e.preventDefault();
+
+      const data = {
+        accountId: document.getElementById('deploy-account-id').value,
+        apiToken: document.getElementById('deploy-api-token').value,
+        workerName: document.getElementById('deploy-worker-name').value,
+        kvNamespaceUsers: document.getElementById('deploy-kv-users').value,
+        kvNamespaceRateLimit: document.getElementById('deploy-kv-rate').value
+      };
+
+      try {
+        const response = await fetch(\`\${API_BASE}/api/deploy/config\`, {
+          method: 'POST',
+          headers: {
+            'Authorization': \`Bearer \${authToken}\`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          showToast('配置保存成功');
+        } else {
+          alert(result.error || '保存失败');
+        }
+      } catch (error) {
+        alert('网络错误');
+      }
+    }
+
+    // 创建 KV 命名空间
+    async function createKVNamespace() {
+      const title = document.getElementById('kv-namespace-title').value;
+      if (!title) {
+        alert('请输入命名空间名称');
+        return;
+      }
+
+      // 首先获取配置
+      let config = null;
+      try {
+        const configResponse = await fetch(\`\${API_BASE}/api/deploy/config\`, {
+          headers: { 'Authorization': \`Bearer \${authToken}\` }
+        });
+        if (configResponse.ok) {
+          const configData = await configResponse.json();
+          config = configData.config;
+        }
+      } catch (error) {
+        alert('请先在配置页面保存 Account ID 和 API Token');
+        return;
+      }
+
+      if (!config || !config.accountId || !config.apiToken) {
+        alert('请先在配置页面保存 Account ID 和 API Token');
+        return;
+      }
+
+      const resultDiv = document.getElementById('kv-result');
+      resultDiv.innerHTML = '<p style="color: var(--text-secondary);">创建中...</p>';
+
+      try {
+        const response = await fetch(\`\${API_BASE}/api/deploy/kv/create\`, {
+          method: 'POST',
+          headers: {
+            'Authorization': \`Bearer \${authToken}\`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            accountId: config.accountId,
+            apiToken: config.apiToken,
+            title: title
+          })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          resultDiv.innerHTML = \`
+            <div class="alert alert-success">
+              <strong>✅ 创建成功！</strong><br>
+              命名空间 ID: <code style="background: white; padding: 2px 8px; border-radius: 4px;">\${result.namespace.id}</code><br>
+              <button class="btn btn-primary" style="margin-top: 10px;" 
+                onclick="navigator.clipboard.writeText('\${result.namespace.id}').then(() => showToast('已复制'))">
+                📋 复制 ID
+              </button>
+            </div>
+          \`;
+          document.getElementById('kv-namespace-title').value = '';
+        } else {
+          resultDiv.innerHTML = \`
+            <div class="alert alert-error">
+              ❌ 创建失败: \${result.error || '未知错误'}
+            </div>
+          \`;
+        }
+      } catch (error) {
+        resultDiv.innerHTML = \`
+          <div class="alert alert-error">
+            ❌ 网络错误: \${error.message}
+          </div>
+        \`;
+      }
+    }
+
+    // 部署到 Cloudflare
+    async function deployToCloudflare() {
+      const resultDiv = document.getElementById('deploy-result');
+      resultDiv.innerHTML = '<p style="color: var(--text-secondary);">检查配置...</p>';
+
+      // 获取配置
+      let config = null;
+      try {
+        const configResponse = await fetch(\`\${API_BASE}/api/deploy/config\`, {
+          headers: { 'Authorization': \`Bearer \${authToken}\` }
+        });
+        if (configResponse.ok) {
+          const configData = await configResponse.json();
+          config = configData.config;
+        }
+      } catch (error) {
+        resultDiv.innerHTML = '<div class="alert alert-error">❌ 无法加载配置</div>';
+        return;
+      }
+
+      if (!config || !config.accountId || !config.apiToken || !config.workerName) {
+        resultDiv.innerHTML = '<div class="alert alert-error">❌ 请先完成配置</div>';
+        return;
+      }
+
+      if (!config.kvNamespaceUsers || !config.kvNamespaceRateLimit) {
+        resultDiv.innerHTML = '<div class="alert alert-error">❌ 请先创建 KV 命名空间</div>';
+        return;
+      }
+
+      resultDiv.innerHTML = '<p style="color: var(--text-secondary);">部署中...</p>';
+
+      try {
+        const response = await fetch(\`\${API_BASE}/api/deploy/worker\`, {
+          method: 'POST',
+          headers: {
+            'Authorization': \`Bearer \${authToken}\`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(config)
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          resultDiv.innerHTML = \`
+            <div class="alert alert-success">
+              <strong>✅ 部署配置已保存</strong><br><br>
+              <p>\${result.message}</p>
+              <pre style="background: white; padding: 15px; border-radius: 8px; margin: 15px 0; overflow-x: auto;">\${result.deployCommand}</pre>
+              <p style="margin-top: 15px; font-size: 14px;">
+                请在本地运行上述命令完成部署。<br>
+                确保 wrangler.toml 中包含以下配置：
+              </p>
+              <pre style="background: white; padding: 15px; border-radius: 8px; margin-top: 10px; overflow-x: auto;">\${JSON.stringify(result.wranglerConfig, null, 2)}</pre>
+            </div>
+          \`;
+        } else {
+          resultDiv.innerHTML = \`
+            <div class="alert alert-error">
+              ❌ 部署失败: \${result.error || '未知错误'}
+            </div>
+          \`;
+        }
+      } catch (error) {
+        resultDiv.innerHTML = \`
+          <div class="alert alert-error">
+            ❌ 网络错误: \${error.message}
+          </div>
+        \`;
       }
     }
 
