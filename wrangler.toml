@@ -8,12 +8,12 @@ ENVIRONMENT = "production"
 # KV 命名空间用于存储用户数据
 [[kv_namespaces]]
 binding = "USERS_KV"
-id = "your_kv_namespace_id"
+id = "abe9fd8613554b25b9f47d462baba399"
 
 # KV 命名空间用于速率限制
 [[kv_namespaces]]
 binding = "RATE_LIMIT_KV"
-id = "your_rate_limit_kv_id"
+id = "f3b428759c3842baa936da32b7b971d9"
 
 # 密钥配置（使用 wrangler secret put 命令设置）
 # JWT_SECRET - JWT 签名密钥
