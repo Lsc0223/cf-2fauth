@@ -1,0 +1,32 @@
+feat: 优化OAuth自动注册功能，添加首次登录欢迎页
+
+主要改进：
+
+1. OAuth认证增强 (src/api/auth.js)
+   - 添加isNewUser标志，明确区分新用户注册和已有用户登录
+   - 新增console.log日志记录用户注册和登录活动
+   - 在JWT token中包含isNewUser信息
+   - 优化代码结构，先检查用户再生成token
+
+2. 前端UI改进 (src/ui/index.js)
+   - 新增showWelcomeMessage()函数，显示首次登录欢迎页
+   - 欢迎页介绍系统核心功能，引导新用户开始使用
+   - 在init()函数中检测is_new_user标记并显示欢迎页
+   - 自动清除localStorage中的临时标记
+
+3. 文档更新
+   - 更新README.md，明确说明自动注册功能
+   - 更新CHANGELOG.md，记录v1.1.0版本更新
+   - 新增docs/AUTO_REGISTER.md技术文档
+
+功能特点：
+- ✨ OAuth用户首次登录自动创建账户，无需手动注册
+- 🎉 新用户首次登录显示欢迎页面
+- 📝 添加日志便于调试和监控
+- 📚 完善的技术文档
+
+测试：
+- ✅ 代码语法检查通过
+- ✅ 自动注册逻辑完整
+- ✅ 前端集成正确
+- ✅ 文档完整准确
