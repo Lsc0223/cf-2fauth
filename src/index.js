@@ -58,7 +58,31 @@ export default {
 
       const user = await authenticate(request, env);
       if (!user) {
-        return new Response(JSON.stringify({ error: '未授权，请先登录' }), {
+        // 为不同类型的请求提供更详细的错误信息
+        let errorResponse = { 
+          error: '未授权，请先登录',
+          message: '您需要通过 Linux.do OAuth 登录才能使用此功能',
+          loginUrl: '/api/auth/oauth/login'
+        };
+        
+        // 如果是API请求，提供更详细的技术信息
+        if (path.startsWith('/api/')) {
+          errorResponse = {
+            ...errorResponse,
+            details: {
+              reason: 'missing_or_invalid_jwt_token',
+              solution: '请通过前端页面完成 OAuth 登录流程',
+              loginFlow: [
+                '1. 访问主页',
+                '2. 点击"使用 Linux.do 登录"',
+                '3. 完成 OAuth 授权',
+                '4. 系统将自动注册并登录'
+              ]
+            }
+          };
+        }
+        
+        return new Response(JSON.stringify(errorResponse), {
           status: 401,
           headers: { 
             'Content-Type': 'application/json; charset=utf-8',

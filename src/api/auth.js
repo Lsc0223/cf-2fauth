@@ -162,13 +162,32 @@ export async function authenticate(request, env) {
   const authHeader = request.headers.get('Authorization');
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.log(`认证失败: 缺少Authorization头或格式错误 - ${request.url}`);
     return null;
   }
   
   const token = authHeader.substring(7);
-  const payload = await verifyJWT(token, env.JWT_SECRET);
   
-  return payload;
+  try {
+    const payload = await verifyJWT(token, env.JWT_SECRET);
+    
+    if (!payload) {
+      console.log(`认证失败: JWT token验证失败 - ${request.url}`);
+      return null;
+    }
+    
+    // 额外检查：确保用户在数据库中存在
+    const userData = await env.USERS_KV.get(`user:${payload.userId}`, 'json');
+    if (!userData) {
+      console.log(`认证失败: 用户不存在 ${payload.userId} - ${request.url}`);
+      return null;
+    }
+    
+    return payload;
+  } catch (error) {
+    console.error(`认证异常: ${error.message} - ${request.url}`);
+    return null;
+  }
 }
 
 /**
