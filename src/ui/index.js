@@ -450,10 +450,34 @@ export const HTML_CONTENT = `<!DOCTYPE html>
         }
       } catch (error) {
         console.error('初始化失败:', error);
-        localStorage.removeItem('auth_token');
-        authToken = null;
-        renderLogin();
+        // 如果是认证错误，已经在loadAccounts中处理了
+        if (error.message !== '认证失败') {
+          localStorage.removeItem('auth_token');
+          authToken = null;
+          renderLogin();
+          showGenericError(error.message);
+        }
       }
+    }
+
+    // 显示认证错误
+    function showAuthError() {
+      document.getElementById('login-error').innerHTML = \`
+        <div class="alert alert-error">
+          <strong>⚠️ 会话已过期</strong><br>
+          您的登录会话已过期，请重新登录。
+        </div>
+      \`;
+    }
+
+    // 显示通用错误
+    function showGenericError(message) {
+      document.getElementById('login-error').innerHTML = \`
+        <div class="alert alert-error">
+          <strong>❌ 初始化失败</strong><br>
+          \${message || '系统初始化时发生错误，请刷新页面重试。'}
+        </div>
+      \`;
     }
 
     // 渲染登录页面
@@ -572,7 +596,18 @@ export const HTML_CONTENT = `<!DOCTYPE html>
         headers: { 'Authorization': \`Bearer \${authToken}\` }
       });
 
-      if (!response.ok) throw new Error('加载失败');
+      if (!response.ok) {
+        if (response.status === 401) {
+          // 认证失败，清除无效token并重定向到登录页
+          console.error('认证失败，token可能已过期');
+          localStorage.removeItem('auth_token');
+          authToken = null;
+          renderLogin();
+          showAuthError();
+          throw new Error('认证失败');
+        }
+        throw new Error('加载失败');
+      }
 
       const data = await response.json();
       accounts = data.accounts || [];
@@ -584,6 +619,16 @@ export const HTML_CONTENT = `<!DOCTYPE html>
         const response = await fetch(\`\${API_BASE}/api/codes\`, {
           headers: { 'Authorization': \`Bearer \${authToken}\` }
         });
+
+        if (response.status === 401) {
+          // 认证失败，清除无效token并重定向到登录页
+          console.error('认证失败，token可能已过期');
+          localStorage.removeItem('auth_token');
+          authToken = null;
+          renderLogin();
+          showAuthError();
+          return;
+        }
 
         if (response.ok) {
           const data = await response.json();
