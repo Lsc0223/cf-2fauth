@@ -1,6 +1,6 @@
 // Cloudflare Workers 入口文件
 
-import { authenticate, handleOAuthLogin, handleOAuthCallback, handleSimpleLogin, handleLogout } from './api/auth.js';
+import { authenticate, handleOAuthLogin, handleOAuthCallback, handleSimpleLogin, handleLogout, handleGetCurrentUser, handleDeleteUser } from './api/auth.js';
 import { getAccounts, addAccount, updateAccount, deleteAccount, generateCode, generateAllCodes } from './api/accounts.js';
 import { getWebDAVConfigs, addWebDAVConfig, deleteWebDAVConfig, createBackup, restoreBackup, listBackups } from './api/backup.js';
 import { exportAccounts, importAccounts } from './api/import.js';
@@ -69,7 +69,11 @@ export default {
 
       let response;
 
-      if (path === '/api/accounts' && method === 'GET') {
+      if (path === '/api/user' && method === 'GET') {
+        response = await handleGetCurrentUser(request, env, user);
+      } else if (path === '/api/user' && method === 'DELETE') {
+        response = await handleDeleteUser(request, env, user);
+      } else if (path === '/api/accounts' && method === 'GET') {
         response = await getAccounts(request, env, user);
       } else if (path === '/api/accounts' && method === 'POST') {
         response = await addAccount(request, env, user);

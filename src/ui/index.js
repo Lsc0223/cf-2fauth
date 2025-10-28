@@ -454,53 +454,15 @@ export const HTML_CONTENT = `<!DOCTYPE html>
       document.getElementById('app').innerHTML = \`
         <div class="login-container">
           <h2>🔐 2FA 安全管理</h2>
-          <form id="login-form">
-            <div class="form-group">
-              <label>用户名</label>
-              <input type="text" class="form-control" id="username" required placeholder="请输入用户名">
-            </div>
-            <div class="form-group">
-              <label>密码</label>
-              <input type="password" class="form-control" id="password" required placeholder="请输入密码">
-            </div>
-            <button type="submit" class="btn btn-primary" style="width: 100%;">登录</button>
-          </form>
+          <p style="text-align: center; color: var(--text-secondary); margin-bottom: 20px;">
+            使用 Linux.do 账户登录
+          </p>
+          <button class="btn btn-primary" onclick="window.location.href='/api/auth/oauth/login'" style="width: 100%;">
+            🔑 使用 Linux.do 登录
+          </button>
           <div id="login-error" style="margin-top: 15px;"></div>
         </div>
       \`;
-
-      document.getElementById('login-form').addEventListener('submit', handleLogin);
-    }
-
-    // 处理登录
-    async function handleLogin(e) {
-      e.preventDefault();
-      const username = document.getElementById('username').value;
-      const password = document.getElementById('password').value;
-
-      try {
-        const response = await fetch(\`\${API_BASE}/api/auth/login\`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password })
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-          authToken = data.token;
-          localStorage.setItem('auth_token', authToken);
-          await init();
-        } else {
-          document.getElementById('login-error').innerHTML = \`
-            <div class="alert alert-error">\${data.error || '登录失败'}</div>
-          \`;
-        }
-      } catch (error) {
-        document.getElementById('login-error').innerHTML = \`
-          <div class="alert alert-error">网络错误，请稍后重试</div>
-        \`;
-      }
     }
 
     // 渲染主应用
@@ -516,6 +478,7 @@ export const HTML_CONTENT = `<!DOCTYPE html>
               <button class="btn btn-secondary" onclick="showBackupModal()">☁️ 备份</button>
               <button class="btn btn-secondary" onclick="showImportModal()">📥 导入</button>
               <button class="btn btn-secondary" onclick="exportData()">📤 导出</button>
+              <button class="btn btn-secondary" onclick="showSettingsModal()">⚙️ 设置</button>
               <button class="btn btn-secondary" onclick="logout()">🚪 退出</button>
             </div>
           </div>
@@ -1048,6 +1011,108 @@ export const HTML_CONTENT = `<!DOCTYPE html>
       setTimeout(() => {
         toast.remove();
       }, 3000);
+    }
+
+    // 显示设置模态框
+    async function showSettingsModal() {
+      try {
+        const response = await fetch(\`\${API_BASE}/api/user\`, {
+          headers: {
+            'Authorization': \`Bearer \${authToken}\`
+          }
+        });
+
+        let userInfo = { username: '用户', accountCount: 0 };
+        if (response.ok) {
+          const data = await response.json();
+          userInfo = data.user;
+        }
+
+        document.getElementById('modal-container').innerHTML = \`
+          <div class="modal active">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h3>⚙️ 用户设置</h3>
+                <button class="close-btn" onclick="closeModal()">×</button>
+              </div>
+              <div class="modal-body">
+                <div class="form-group">
+                  <label>用户 ID</label>
+                  <input type="text" class="form-control" value="\${userInfo.id || '-'}" readonly>
+                </div>
+                <div class="form-group">
+                  <label>用户名</label>
+                  <input type="text" class="form-control" value="\${userInfo.username || '-'}" readonly>
+                </div>
+                <div class="form-group">
+                  <label>昵称</label>
+                  <input type="text" class="form-control" value="\${userInfo.name || '-'}" readonly>
+                </div>
+                <div class="form-group">
+                  <label>信任等级</label>
+                  <input type="text" class="form-control" value="\${userInfo.trust_level !== undefined ? userInfo.trust_level : '-'}" readonly>
+                </div>
+                <div class="form-group">
+                  <label>账户状态</label>
+                  <input type="text" class="form-control" value="\${userInfo.active ? '活跃' : '非活跃'}" readonly>
+                </div>
+                <div class="form-group">
+                  <label>2FA 账户数量</label>
+                  <input type="text" class="form-control" value="\${userInfo.accountCount || 0}" readonly>
+                </div>
+                <div class="form-group">
+                  <label>创建时间</label>
+                  <input type="text" class="form-control" value="\${userInfo.createdAt ? new Date(userInfo.createdAt).toLocaleString('zh-CN') : '-'}" readonly>
+                </div>
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid var(--border);">
+                <div class="form-group">
+                  <label style="color: var(--danger); font-weight: bold;">⚠️ 危险操作</label>
+                  <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 10px;">
+                    删除账户将永久删除您的所有数据，包括所有 2FA 账户和 WebDAV 配置。此操作无法撤销！
+                  </p>
+                  <button class="btn btn-danger" onclick="deleteUserAccount()" style="width: 100%;">
+                    🗑️ 删除我的账户
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        \`;
+      } catch (error) {
+        alert('加载用户信息失败');
+      }
+    }
+
+    // 删除用户账户
+    async function deleteUserAccount() {
+      const confirmed = confirm('⚠️ 警告：删除账户将永久删除所有数据！\\n\\n此操作无法撤销，确定要继续吗？');
+      
+      if (!confirmed) return;
+
+      const doubleConfirm = confirm('⚠️ 最后确认：这是您的最后机会！\\n\\n删除后将清除：\\n- 所有 2FA 账户\\n- 所有 WebDAV 配置\\n- 所有备份记录\\n\\n确定删除吗？');
+      
+      if (!doubleConfirm) return;
+
+      try {
+        const response = await fetch(\`\${API_BASE}/api/user\`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': \`Bearer \${authToken}\`
+          }
+        });
+
+        if (response.ok) {
+          alert('账户已成功删除');
+          localStorage.removeItem('auth_token');
+          authToken = null;
+          location.reload();
+        } else {
+          const error = await response.json();
+          alert(\`删除失败: \${error.error || '未知错误'}\`);
+        }
+      } catch (error) {
+        alert('网络错误，请稍后重试');
+      }
     }
 
     // 退出登录

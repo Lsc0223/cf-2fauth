@@ -9,6 +9,7 @@ JWT_SECRET=your_jwt_secret_here
 # 生成方法: openssl rand -base64 32
 ENCRYPTION_KEY=your_encryption_key_here
 
-# OAuth 配置（可选）
-# OAUTH_CLIENT_ID=your_oauth_client_id
-# OAUTH_CLIENT_SECRET=your_oauth_client_secret
+# OAuth 配置（必需 - Linux.do OAuth2）
+# 从 https://connect.linux.do 获取
+OAUTH_CLIENT_ID=your_oauth_client_id
+OAUTH_CLIENT_SECRET=your_oauth_client_secret
