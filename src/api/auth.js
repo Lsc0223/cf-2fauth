@@ -66,18 +66,15 @@ export async function handleOAuthCallback(request, env) {
     const userInfo = await userInfoResponse.json();
     
     const userId = String(userInfo.id);
-    const token = await generateJWT(
-      { 
-        userId,
-        username: userInfo.username,
-        name: userInfo.name
-      },
-      env.JWT_SECRET,
-      7200
-    );
     
+    // 检查用户是否已存在
     let userData = await env.USERS_KV.get(`user:${userId}`, 'json');
+    let isNewUser = false;
+    
     if (!userData) {
+      // 自动注册新用户
+      console.log(`自动注册新用户: ${userInfo.username} (ID: ${userId})`);
+      isNewUser = true;
       userData = {
         id: userId,
         username: userInfo.username,
@@ -93,6 +90,8 @@ export async function handleOAuthCallback(request, env) {
       };
       await env.USERS_KV.put(`user:${userId}`, JSON.stringify(userData));
     } else {
+      // 更新已存在用户的信息
+      console.log(`用户登录: ${userInfo.username} (ID: ${userId})`);
       userData.username = userInfo.username;
       userData.name = userInfo.name;
       userData.avatar_template = userInfo.avatar_template;
@@ -104,6 +103,18 @@ export async function handleOAuthCallback(request, env) {
       await env.USERS_KV.put(`user:${userId}`, JSON.stringify(userData));
     }
     
+    // 生成JWT token
+    const token = await generateJWT(
+      { 
+        userId,
+        username: userInfo.username,
+        name: userInfo.name,
+        isNewUser
+      },
+      env.JWT_SECRET,
+      7200
+    );
+    
     const html = `
       <!DOCTYPE html>
       <html>
@@ -114,6 +125,7 @@ export async function handleOAuthCallback(request, env) {
       <body>
         <script>
           localStorage.setItem('auth_token', '${token}');
+          ${isNewUser ? "localStorage.setItem('is_new_user', 'true');" : ''}
           window.location.href = '/';
         </script>
       </body>

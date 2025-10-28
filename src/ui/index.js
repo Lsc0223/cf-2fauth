@@ -441,6 +441,13 @@ export const HTML_CONTENT = `<!DOCTYPE html>
         await loadAccounts();
         renderApp();
         startCodeRefresh();
+        
+        // 检查是否是新用户首次登录
+        const isNewUser = localStorage.getItem('is_new_user');
+        if (isNewUser === 'true') {
+          localStorage.removeItem('is_new_user');
+          showWelcomeMessage();
+        }
       } catch (error) {
         console.error('初始化失败:', error);
         localStorage.removeItem('auth_token');
@@ -1011,6 +1018,38 @@ export const HTML_CONTENT = `<!DOCTYPE html>
       setTimeout(() => {
         toast.remove();
       }, 3000);
+    }
+
+    // 显示欢迎消息（新用户首次登录）
+    function showWelcomeMessage() {
+      document.getElementById('modal-container').innerHTML = \`
+        <div class="modal active">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3>🎉 欢迎使用 2FA 安全管理系统</h3>
+              <button class="close-btn" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+              <p style="margin-bottom: 15px;">您已成功注册并登录！</p>
+              <p style="margin-bottom: 15px; color: var(--text-secondary);">
+                这是一个安全的双因素认证(2FA)管理系统，您可以：
+              </p>
+              <ul style="margin-bottom: 20px; padding-left: 20px; color: var(--text-secondary);">
+                <li style="margin-bottom: 8px;">📱 添加和管理您的 2FA 账户</li>
+                <li style="margin-bottom: 8px;">🔐 生成 TOTP 验证码</li>
+                <li style="margin-bottom: 8px;">☁️ 通过 WebDAV 云端备份</li>
+                <li style="margin-bottom: 8px;">📥📤 导入和导出数据</li>
+              </ul>
+              <p style="margin-bottom: 20px; color: var(--text-secondary); font-size: 14px;">
+                💡 提示：点击右上角 "➕ 添加账户" 开始添加您的第一个 2FA 账户
+              </p>
+              <button class="btn btn-primary" onclick="closeModal()" style="width: 100%;">
+                开始使用
+              </button>
+            </div>
+          </div>
+        </div>
+      \`;
     }
 
     // 显示设置模态框
