@@ -66,19 +66,22 @@
 认证和授权管理
 
 **功能：**
-- 简单登录（演示模式）
-- OAuth 2.0 登录（可选）
-- JWT Token 生成和验证
+- 简单登录（已禁用）
+- Linux.do OAuth 2.0 登录（必需）
+- Linux.do Access Token 管理
 - 用户会话管理
 - 登出处理
+- 向后兼容 JWT Token 验证
 
 **主要函数：**
 ```javascript
-- handleSimpleLogin()     // 简单登录
+- handleSimpleLogin()     // 简单登录（已禁用）
 - handleOAuthLogin()      // OAuth 登录
-- handleOAuthCallback()   // OAuth 回调
-- authenticate()          // JWT 验证中间件
-- handleLogout()          // 登出
+- handleOAuthCallback()   // OAuth 回调和token映射
+- authenticate()          // Token验证中间件（支持两种token）
+- handleLogout()          // 登出和清理
+- handleGetCurrentUser()  // 获取当前用户
+- handleDeleteUser()      // 删除用户账户
 ```
 
 #### `src/api/accounts.js`
@@ -236,19 +239,23 @@ WebDAV 客户端
 ### 1. 认证流程
 
 ```
-用户输入凭证
+用户点击 Linux.do 登录
     ↓
-POST /api/auth/login
+跳转到 Linux.do OAuth
     ↓
-验证凭证
+用户授权
     ↓
-生成 JWT Token
+OAuth 回调处理
+    ↓
+获取 Linux.do Access Token
+    ↓
+存储 Token 映射
     ↓
 返回 Token 给客户端
     ↓
 客户端存储在 localStorage
     ↓
-后续请求携带 Token
+后续请求携带 Linux.do Token
 ```
 
 ### 2. 添加账户流程
@@ -362,10 +369,10 @@ POST /api/backup/create
 敏感配置存储
 
 ```
-JWT_SECRET          - JWT 签名密钥
+JWT_SECRET          - JWT 签名密钥（向后兼容）
 ENCRYPTION_KEY      - 数据加密密钥
-OAUTH_CLIENT_ID     - OAuth 客户端 ID（可选）
-OAUTH_CLIENT_SECRET - OAuth 客户端密钥（可选）
+OAUTH_CLIENT_ID     - Linux.do OAuth 客户端 ID（必需）
+OAUTH_CLIENT_SECRET - Linux.do OAuth 客户端密钥（必需）
 ```
 
 ## 🔄 工作流程
@@ -406,7 +413,7 @@ npm run deploy
 - **运行时**: Cloudflare Workers (V8 Isolates)
 - **存储**: Cloudflare KV (Key-Value Store)
 - **加密**: Web Crypto API
-- **认证**: JWT (HS256)
+- **认证**: Linux.do Access Token + JWT (向后兼容)
 
 ### 前端
 - **框架**: 原生 JavaScript（无依赖）

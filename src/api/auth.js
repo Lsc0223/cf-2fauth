@@ -103,17 +103,22 @@ export async function handleOAuthCallback(request, env) {
       await env.USERS_KV.put(`user:${userId}`, JSON.stringify(userData));
     }
     
-    // 生成JWT token
-    const token = await generateJWT(
-      { 
-        userId,
-        username: userInfo.username,
-        name: userInfo.name,
-        isNewUser
-      },
-      env.JWT_SECRET,
-      7200
-    );
+    // 直接使用从 linux.do 获取的 access_token 作为认证令牌
+    // 同时存储必要的用户信息以供后续验证
+    const authToken = tokenData.access_token;
+    
+    // 存储token与用户信息的映射关系，用于后续验证
+    const tokenInfo = {
+      userId,
+      username: userInfo.username,
+      name: userInfo.name,
+      isNewUser,
+      expiresAt: Date.now() + (tokenData.expires_in * 1000), // 转换为毫秒时间戳
+      scope: tokenData.scope
+    };
+    await env.USERS_KV.put(`token:${authToken}`, JSON.stringify(tokenInfo), {
+      expirationTtl: tokenData.expires_in // 设置与token相同的过期时间
+    });
     
     const html = `
       <!DOCTYPE html>
@@ -124,7 +129,7 @@ export async function handleOAuthCallback(request, env) {
       </head>
       <body>
         <script>
-          localStorage.setItem('auth_token', '${token}');
+          localStorage.setItem('auth_token', '${authToken}');
           ${isNewUser ? "localStorage.setItem('is_new_user', 'true');" : ''}
           window.location.href = '/';
         </script>
@@ -169,10 +174,36 @@ export async function authenticate(request, env) {
   const token = authHeader.substring(7);
   
   try {
+    // 首先尝试从token映射中获取用户信息（来自linux.do的access_token）
+    let tokenInfo = await env.USERS_KV.get(`token:${token}`, 'json');
+    
+    if (tokenInfo) {
+      // 验证token是否过期
+      if (tokenInfo.expiresAt && tokenInfo.expiresAt < Date.now()) {
+        console.log(`认证失败: token已过期 - ${request.url}`);
+        return null;
+      }
+      
+      // 额外检查：确保用户在数据库中存在
+      const userData = await env.USERS_KV.get(`user:${tokenInfo.userId}`, 'json');
+      if (!userData) {
+        console.log(`认证失败: 用户不存在 ${tokenInfo.userId} - ${request.url}`);
+        return null;
+      }
+      
+      return {
+        userId: tokenInfo.userId,
+        username: tokenInfo.username,
+        name: tokenInfo.name,
+        isNewUser: tokenInfo.isNewUser
+      };
+    }
+    
+    // 如果没有找到token映射，尝试验证自生成的JWT token（向后兼容）
     const payload = await verifyJWT(token, env.JWT_SECRET);
     
     if (!payload) {
-      console.log(`认证失败: JWT token验证失败 - ${request.url}`);
+      console.log(`认证失败: token验证失败 - ${request.url}`);
       return null;
     }
     
@@ -260,6 +291,20 @@ export async function handleDeleteUser(request, env, user) {
  * 登出
  */
 export async function handleLogout(request, env) {
+  const authHeader = request.headers.get('Authorization');
+  
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    
+    // 尝试删除token映射（如果是linux.do的access_token）
+    try {
+      await env.USERS_KV.delete(`token:${token}`);
+    } catch (error) {
+      // 忽略删除错误，可能是JWT token或者token已不存在
+      console.log(`登出时删除token映射失败: ${error.message}`);
+    }
+  }
+  
   return new Response(JSON.stringify({ success: true }), {
     headers: { 'Content-Type': 'application/json; charset=utf-8' }
   });
