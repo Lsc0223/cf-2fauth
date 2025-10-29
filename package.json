@@ -1,6 +1,6 @@
 {
   "name": "2fa-manager",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "基于 Cloudflare Workers 的现代化双因素认证管理系统",
   "main": "src/index.js",
   "scripts": {

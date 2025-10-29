@@ -6,7 +6,8 @@
 
 ### 🛡️ 安全特性
 - **OAuth2 认证** - 使用 Linux.do OAuth2 安全登录
-- **JWT 会话管理** - 2小时自动过期的安全会话
+- **原生Token认证** - 直接使用 Linux.do access_token，更安全高效
+- **向后兼容** - 支持现有JWT token用户的平滑迁移
 - **端到端加密** - 所有敏感数据使用 AES-GCM 加密存储
 - **速率限制保护** - 防止暴力攻击和 API 滥用
 - **安全密钥管理** - 支持通过 Cloudflare Secrets 管理敏感配置

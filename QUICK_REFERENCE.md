@@ -5,22 +5,28 @@
 当用户通过 Linux.do OAuth 登录时：
 - ✅ 如果是**新用户** → 自动创建账户 + 显示欢迎页
 - ✅ 如果是**老用户** → 更新信息 + 直接登录
+- 🔥 **新特性**：直接使用 Linux.do access_token，不再自生成JWT
 
 ## 📝 关键代码位置
 
 ### 1. 后端逻辑
 **文件**: `src/api/auth.js`  
 **函数**: `handleOAuthCallback()`  
-**行数**: 第 70-116 行
+**行数**: 第 106-121 行
 
 ```javascript
-// 检查并自动注册
-let isNewUser = false;
-if (!userData) {
-  console.log(`自动注册新用户: ${username} (ID: ${userId})`);
-  isNewUser = true;
-  // 创建新用户...
-}
+// 直接使用从 linux.do 获取的 access_token 作为认证令牌
+const authToken = tokenData.access_token;
+
+// 存储token与用户信息的映射关系
+const tokenInfo = {
+  userId, username, name, isNewUser,
+  expiresAt: Date.now() + (tokenData.expires_in * 1000),
+  scope: tokenData.scope
+};
+await env.USERS_KV.put(`token:${authToken}`, JSON.stringify(tokenInfo), {
+  expirationTtl: tokenData.expires_in
+});
 ```
 
 ### 2. 前端处理
